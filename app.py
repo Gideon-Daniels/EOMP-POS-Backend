@@ -26,7 +26,7 @@ def fetch_users():
         new_data = []
 
         for data in users_:
-            new_data.append(User(data[0], data[3], data[4]))
+            new_data.append(User(data[0], data[1], data[2], data[3], data[4], data[5]))
     return new_data
 
 
@@ -109,11 +109,11 @@ def user_registration():
 
         with sqlite3.connect('POS.db') as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO user("
+            cursor.execute("INSERT INTO users("
                            "first_name,"
                            "surname,"
                            "username,"
-                           "password"
+                           "password,"
                            "email) VALUES(?, ?, ?, ?, ?)", (first_name, surname, username, password, email))
             conn.commit()
             response["message"] = "success"
@@ -248,3 +248,8 @@ def get_one_product(post_id):
         response["data"] = cursor.fetchone()
 
     return jsonify(response)
+
+
+if __name__ == "__main__":
+    app.run()
+    app.debug = True
