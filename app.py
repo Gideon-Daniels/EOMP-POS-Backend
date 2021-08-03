@@ -121,8 +121,23 @@ def user_registration():
         return response
 
 
+@app.route('/get-users/', methods=["GET"])
+# @jwt_required()
+def get_users():
+    response = {}
+    with sqlite3.connect("POS.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users")
+
+        all_users = cursor.fetchall()
+
+    response['status_code'] = 200
+    response['data'] = all_users
+    return response
+
+
 @app.route('/create-product/', methods=["POST"])
-@jwt_required()
+# @jwt_required()
 def create_product():
     response = {}
 
@@ -136,18 +151,18 @@ def create_product():
         with sqlite3.connect('POS.db') as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO products("
-                           "title"
-                           "description"
-                           "image"
-                           "price"
-                           "type) VALUE(?, ?, ?, ?, ?)", (title, description, image, price, type))
+                           "title,"
+                           "description,"
+                           "image,"
+                           "price,"
+                           "type) VALUES(?, ?, ?, ?, ?)", (title, description, image, price, type))
             conn.commit()
             response['status_code'] = 201
             response['description'] = "Product added successfully"
         return response
 
 
-@app.route('/get-product/', methods=["GET"])
+@app.route('/get-products/', methods=["GET"])
 def get_products():
     response = {}
     with sqlite3.connect("POS.db") as conn:
@@ -163,24 +178,24 @@ def get_products():
 
 @app.route("/delete-product/<int:product_id>")
 @jwt_required()
-def delete_post(product_id):
+def delete_product(product_id):
     response = {}
     with sqlite3.connect("POS.db") as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM products WHERE id=" + str(product_id))
+        cursor.execute("DELETE FROM products WHERE product_id=" + str(product_id))
         conn.commit()
         response['status_code'] = 200
         response['message'] = "Product deleted successfully."
     return response
 
 
-@app.route('/edit-post/<int:post_id>', methods=["PUT"])
-@jwt_required
+@app.route('/edit-product/<int:product_id>/', methods=["PUT"])
+# @jwt_required()
 def edit_product(product_id):
     response = {}
 
     if request.method == "PUT":
-        with sqlite3.connect('POST.db') as conn:
+        with sqlite3.connect('POS.db') as conn:
             incoming_data = dict(request.json)
             put_data = {}
 
@@ -188,14 +203,19 @@ def edit_product(product_id):
                 put_data["title"] = incoming_data.get("title")
                 with sqlite3.connect('POS.db') as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET title =? WHERE id=?", (put_data["title"], product_id))
+                    cursor.execute("UPDATE products SET title =? WHERE product_id=?", (put_data["title"], product_id))
 
+                    conn.commit()
+
+                    response["description"] = "Description Updated successfully"
+                    response["status_code"] = 200
             if incoming_data.get("description") is not None:
                 put_data["description"] = incoming_data.get("description")
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET description =? WHERE id=?", (put_data["content"], product_id))
+                    cursor.execute("UPDATE products SET description =? WHERE product_id=?", (put_data["content"],
+                                                                                             product_id))
                     conn.commit()
 
                     response["description"] = "Description Updated successfully"
@@ -205,7 +225,7 @@ def edit_product(product_id):
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET price =? WHERE id=?", (put_data["price"], product_id))
+                    cursor.execute("UPDATE products SET price =? WHERE product_id=?", (put_data["price"], product_id))
                     conn.commit()
 
                     response["Price"] = "Price Updated successfully"
@@ -216,7 +236,7 @@ def edit_product(product_id):
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET image =? WHERE id=?", (put_data["image"], product_id))
+                    cursor.execute("UPDATE products SET image =? WHERE product_id=?", (put_data["image"], product_id))
                     conn.commit()
 
                     response["image"] = "Images Updated successfully"
@@ -227,7 +247,7 @@ def edit_product(product_id):
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET type =? WHERE id=?", (put_data["type"], product_id))
+                    cursor.execute("UPDATE products SET type =? WHERE product_id=?", (put_data["type"], product_id))
                     conn.commit()
 
                     response["type"] = "Type Updated successfully"
@@ -241,7 +261,7 @@ def get_one_product(post_id):
 
     with sqlite3.connect("POS.db") as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM products where id=" + str(post_id))
+        cursor.execute("SELECT * FROM products where product_id=" + str(post_id))
 
         response["status_code"] = 200
         response["description"] = "Product retrieved successfully"
