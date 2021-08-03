@@ -18,14 +18,14 @@ class User(object):
 
 
 def fetch_users():
-    with sqlite3.connect('blog.db') as conn:
+    with sqlite3.connect('POS.db') as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM user")
-        users = cursor.fetchall()
+        cursor.execute("SELECT * FROM users")
+        users_ = cursor.fetchall()
 
         new_data = []
 
-        for data in users:
+        for data in users_:
             new_data.append(User(data[0], data[3], data[4]))
     return new_data
 
@@ -38,28 +38,28 @@ def init_user_table():
     conn = sqlite3.connect('POS.db')
     print("Opened database successfully")
 
-    conn.execute("CREATE TABLE IF NOT EXIST user("
+    conn.execute("CREATE TABLE IF NOT EXISTS users("
                  "user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
                  "first_name TEXT NOT NULL,"
                  "surname TEXT NOT NULL,"
                  "username TEXT NOT NULL,"
-                 "password TEXT NOT NULL"
+                 "password TEXT NOT NULL,"
                  "email TEXT NOT NULL)")
     print("user table created successfully")
     conn.close()
 
 
 def init_product_table():
-    with sqlite3.connect("blog.db") as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS product("
+    with sqlite3.connect("POS.db") as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS products("
                      "product_id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                     "title TEXT NOT NULL"
-                     "description TEXT NOT NULL"
-                     "image TEXT NOT NULL"
-                     "price INTEGER NOT NULL"
+                     "title TEXT NOT NULL,"
+                     "description TEXT NOT NULL,"
+                     "image TEXT NOT NULL,"
+                     "price INTEGER NOT NULL,"
                      "type TEXT NOT NULL"
                      ")")
-    print("blog product created successfully")
+    print("Table products created successfully")
 
 
 init_user_table()
@@ -113,7 +113,8 @@ def user_registration():
                            "first_name,"
                            "surname,"
                            "username,"
-                           "password) VALUES(?, ?, ?, ?)", (first_name, surname, username, password, email))
+                           "password"
+                           "email) VALUES(?, ?, ?, ?, ?)", (first_name, surname, username, password, email))
             conn.commit()
             response["message"] = "success"
             response["status_code"] = 201
@@ -134,7 +135,7 @@ def create_product():
 
         with sqlite3.connect('POS.db') as conn:
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO post("
+            cursor.execute("INSERT INTO products("
                            "title"
                            "description"
                            "image"
@@ -151,7 +152,7 @@ def get_products():
     response = {}
     with sqlite3.connect("POS.db") as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM product")
+        cursor.execute("SELECT * FROM products")
 
         product = cursor.fetchall()
 
@@ -166,10 +167,10 @@ def delete_post(product_id):
     response = {}
     with sqlite3.connect("POS.db") as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM product WHERE id=" + str(product_id))
+        cursor.execute("DELETE FROM products WHERE id=" + str(product_id))
         conn.commit()
         response['status_code'] = 200
-        response['message'] = "blog post deleted successfully."
+        response['message'] = "Product deleted successfully."
     return response
 
 
@@ -187,14 +188,14 @@ def edit_product(product_id):
                 put_data["title"] = incoming_data.get("title")
                 with sqlite3.connect('POS.db') as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE product SET title =? WHERE id=?", (put_data["title"], product_id))
+                    cursor.execute("UPDATE products SET title =? WHERE id=?", (put_data["title"], product_id))
 
             if incoming_data.get("description") is not None:
                 put_data["description"] = incoming_data.get("description")
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE product SET description =? WHERE id=?", (put_data["content"], product_id))
+                    cursor.execute("UPDATE products SET description =? WHERE id=?", (put_data["content"], product_id))
                     conn.commit()
 
                     response["description"] = "Description Updated successfully"
@@ -204,7 +205,7 @@ def edit_product(product_id):
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE product SET price =? WHERE id=?", (put_data["price"], product_id))
+                    cursor.execute("UPDATE products SET price =? WHERE id=?", (put_data["price"], product_id))
                     conn.commit()
 
                     response["Price"] = "Price Updated successfully"
@@ -215,20 +216,35 @@ def edit_product(product_id):
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE product SET image =? WHERE id=?", (put_data["image"], product_id))
+                    cursor.execute("UPDATE products SET image =? WHERE id=?", (put_data["image"], product_id))
                     conn.commit()
 
                     response["image"] = "Images Updated successfully"
                     response["status_code"] = 200
 
-            if incoming_data.get("image") is not None:
-                put_data["image"] = incoming_data.get("image")
+            if incoming_data.get("type") is not None:
+                put_data["type"] = incoming_data.get("type")
 
                 with sqlite3.connect("POS.db") as conn:
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE product SET image =? WHERE id=?", (put_data["image"], product_id))
+                    cursor.execute("UPDATE products SET type =? WHERE id=?", (put_data["type"], product_id))
                     conn.commit()
 
-                    response["image"] = "Images Updated successfully"
+                    response["type"] = "Type Updated successfully"
                     response["status_code"] = 200
     return response
+
+
+@app.route('/get-product/<int:post_id>/', methods=["GET"])
+def get_one_product(post_id):
+    response = {}
+
+    with sqlite3.connect("POS.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM products where id=" + str(post_id))
+
+        response["status_code"] = 200
+        response["description"] = "Product retrieved successfully"
+        response["data"] = cursor.fetchone()
+
+    return jsonify(response)
