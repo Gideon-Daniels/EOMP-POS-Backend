@@ -16,6 +16,21 @@ class User(object):
         self.password = password
         self.email = email
 
+    def validation(self):
+        if self.id == "" or self.name == "" or self.surname == "" or self.username == "" or self.password == "" or \
+                self.email == "":
+            print("Invalid field")
+
+
+class Products(object):
+    def __init__(self, id, title, description, image, price, type):
+        self.id = id
+        self.title = title
+        self.description = description
+        self.image = image
+        self.price = price
+        self.type = type
+
 
 def fetch_users():
     with sqlite3.connect('POS.db') as conn:
@@ -30,8 +45,25 @@ def fetch_users():
     return new_data
 
 
-users = fetch_users()
+def fetch_products():
+    with sqlite3.connect('POS.db') as conn:
+        cursor = conn.cursor()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM products")
+        products_ = cursor.fetchall()
 
+        new_data = []
+
+        for data in products_:
+            new_data.append(Products(data[0], data[1], data[2], data[3], data[4], data[5]))
+        return new_data
+
+
+users = fetch_users()
+product = fetch_products()
+
+print(users)
+print(product)
 
 # Creating database and tables
 def init_user_table():
@@ -106,7 +138,7 @@ def user_registration():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
-
+        # User.validation()
         with sqlite3.connect('POS.db') as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO users("
@@ -121,9 +153,10 @@ def user_registration():
         return response
 
 
-@app.route('/get-users/', methods=["GET"])
+# Show all the users
+@app.route('/show-users/', methods=["GET"])
 # @jwt_required()
-def get_users():
+def show_users():
     response = {}
     with sqlite3.connect("POS.db") as conn:
         cursor = conn.cursor()
@@ -136,9 +169,9 @@ def get_users():
     return response
 
 
-@app.route('/create-product/', methods=["POST"])
+@app.route('/add-product/', methods=["POST"])
 # @jwt_required()
-def create_product():
+def add_product():
     response = {}
 
     if request.method == "POST":
@@ -162,22 +195,27 @@ def create_product():
         return response
 
 
-@app.route('/get-products/', methods=["GET"])
-def get_products():
+# show all the products
+@app.route('/show-products/', methods=["GET"])
+def show_products():
     response = {}
     with sqlite3.connect("POS.db") as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM products")
+        products = cursor.fetchall()
+        counter = 0
 
-        product = cursor.fetchall()
+    for count in products:
+        counter += 1
 
     response['status_code'] = 200
-    response['data'] = product
+    response['data'] = products
+    response['total'] = counter
     return response
 
 
 @app.route("/delete-product/<int:product_id>")
-@jwt_required()
+# @jwt_required()
 def delete_product(product_id):
     response = {}
     with sqlite3.connect("POS.db") as conn:
@@ -255,8 +293,9 @@ def edit_product(product_id):
     return response
 
 
-@app.route('/get-product/<int:post_id>/', methods=["GET"])
-def get_one_product(post_id):
+# Show only only one product
+@app.route('/show-product/<int:post_id>/', methods=["GET"])
+def show_product(post_id):
     response = {}
 
     with sqlite3.connect("POS.db") as conn:
@@ -268,6 +307,35 @@ def get_one_product(post_id):
         response["data"] = cursor.fetchone()
 
     return jsonify(response)
+
+
+@app.route('/total-price')
+def calculating_total():
+    response = {}
+
+    with sqlite3.connect("POS.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT SUM(price) from products")
+        total = cursor.fetchall()
+        response["status_code"] = 200
+        response["description"] = "Total price received"
+        response["data"] = total
+
+    return response
+
+
+@app.route('/category/<string:types>/')
+def category(types):
+    response = {}
+
+    with sqlite3.connect("POS.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM products where type=" + types)
+        total = cursor.fetchall()
+        response["status_code"] = 200
+        response["description"] = "Type received"
+        response["data"] = total
+    return response
 
 
 if __name__ == "__main__":
