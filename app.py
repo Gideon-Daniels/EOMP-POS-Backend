@@ -5,6 +5,7 @@ import datetime
 from flask import Flask, request, jsonify
 from flask_jwt import JWT, jwt_required, current_identity
 from flask_cors import CORS
+from flask_mail import Mail, Message
 
 
 class User(object):
@@ -65,6 +66,7 @@ product = fetch_products()
 print(users)
 print(product)
 
+
 # Creating database and tables
 def init_user_table():
     conn = sqlite3.connect('POS.db')
@@ -114,11 +116,20 @@ def identity(payload):
 
 # CREATING FLASK
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # cross platform connection to netlify
 app.debug = True
+# authenticate a token , making my app secure
 app.config['SECRET_KEY'] = 'super-secret'
-
 jwt = JWT(app, authenticate, identity)
+# configuration for sending emails
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USERNAME'] = 'gideondaniels.dragoonix@gmail.com'
+app.config['MAIL_PASSWORD'] = ''
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+mail = Mail(app)
+
 
 
 @app.route('/protected')
@@ -336,6 +347,13 @@ def category(types):
         response["description"] = "Type received"
         response["data"] = total
     return response
+
+
+@app.route('/mailed/<string:email>', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        msg = Message('EMAIL ')
 
 
 if __name__ == "__main__":
