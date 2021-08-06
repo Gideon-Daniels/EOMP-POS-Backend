@@ -1,8 +1,8 @@
 import hmac
+import smtplib
 import sqlite3
 import datetime
-
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, url_for
 from flask_jwt import JWT, jwt_required, current_identity
 from flask_cors import CORS
 from flask_mail import Mail, Message
@@ -16,21 +16,6 @@ class User(object):
         self.username = username
         self.password = password
         self.email = email
-
-    def validation(self):
-        if self.id == "" or self.name == "" or self.surname == "" or self.username == "" or self.password == "" or \
-                self.email == "":
-            print("Invalid field")
-
-
-class Products(object):
-    def __init__(self, id, title, description, image, price, type):
-        self.id = id
-        self.title = title
-        self.description = description
-        self.image = image
-        self.price = price
-        self.type = type
 
 
 def fetch_users():
@@ -46,9 +31,49 @@ def fetch_users():
     return new_data
 
 
+def validation_user_registration(name, surname, username, password, email):
+    name = name
+    surname = surname
+    username = username
+    password = password
+    email = email
+    with sqlite3.connect("POS.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users")
+        users = cursor.fetchall()
+
+        new_data = []
+
+        validation_passed = False
+
+        for data in users:
+            new_data.append(data)
+    if username in new_data and password in new_data and email in new_data:
+        return validation_passed
+    elif name == " " or surname == " " or username == " " or password == " " or \
+            email == " ":
+        return validation_passed
+    elif len(name) == 12 and len(surname) == 12:
+        return validation_passed
+    elif '@' not in email:
+        return validation_passed
+    else:
+        validation_passed = True
+        return  validation_passed
+
+
+class Products(object):
+    def __init__(self, id, title, description, image, price, type):
+        self.id = id
+        self.title = title
+        self.description = description
+        self.image = image
+        self.price = price
+        self.type = type
+
+
 def fetch_products():
     with sqlite3.connect('POS.db') as conn:
-        cursor = conn.cursor()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM products")
         products_ = cursor.fetchall()
@@ -62,9 +87,6 @@ def fetch_products():
 
 users = fetch_users()
 product = fetch_products()
-
-print(users)
-print(product)
 
 
 # Creating database and tables
@@ -94,6 +116,7 @@ def init_product_table():
                      "type TEXT NOT NULL"
                      ")")
     print("Table products created successfully")
+    conn.close()
 
 
 init_user_table()
@@ -124,12 +147,11 @@ jwt = JWT(app, authenticate, identity)
 # configuration for sending emails
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
-app.config['MAIL_USERNAME'] = 'gideondaniels.dragoonix@gmail.com'
-app.config['MAIL_PASSWORD'] = ''
+app.config['MAIL_USERNAME'] = 'ashwinjansen.dragoonix@gmail.com'
+app.config['MAIL_PASSWORD'] = 'ashwinjansen9x#'  # enter password
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 mail = Mail(app)
-
 
 
 @app.route('/protected')
@@ -149,18 +171,26 @@ def user_registration():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
-        # User.validation()
-        with sqlite3.connect('POS.db') as conn:
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO users("
-                           "first_name,"
-                           "surname,"
-                           "username,"
-                           "password,"
-                           "email) VALUES(?, ?, ?, ?, ?)", (first_name, surname, username, password, email))
-            conn.commit()
-            response["message"] = "success"
+        if not validation_user_registration(first_name, surname, username, password, email):
+            response["message"] = "User Already Exist"
             response["status_code"] = 201
+        else:
+            with sqlite3.connect('POS.db') as conn:
+                cursor = conn.cursor()
+                try :
+                    cursor.execute("INSERT INTO users("
+                                   "first_name,"
+                                   "surname,"
+                                   "username,"
+                                   "password,"
+                                   "email) VALUES(?, ?, ?, ?, ?)", (first_name, surname, username, password, email))
+                    conn.commit()
+                    response["message"] = "success"
+                    response["status_code"] = 201
+
+                except :
+                    response["status_code"] = 401
+                    response['message'] = "Database failed"
         return response
 
 
@@ -181,7 +211,7 @@ def show_users():
 
 
 @app.route('/add-product/', methods=["POST"])
-# @jwt_required()
+@jwt_required()
 def add_product():
     response = {}
 
@@ -349,11 +379,25 @@ def category(types):
     return response
 
 
-@app.route('/mailed/<string:email>', methods=['GET', 'POST'])
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        msg = Message('EMAIL ')
+@app.route('/mailed/<int:id>', methods=['GET', 'POST'])
+def sending_mails(id):
+    response = {}
+
+    with sqlite3.connect("POS.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM users WHERE user_id=" + str(id))
+        users_email = cursor.fetchone()
+        if request.method == 'POST':
+            try:
+                msg = Message('Hello', sender='ashwinjansen.dragoonix@gmail.com', recipients=[users_email])
+                msg.body = "Your username and email have been confirmed."
+                mail.send(msg)
+                response['status_code'] = 200
+                response['description'] = "Email have been send"
+                response['data'] = users_email
+            except smtplib.SMTPAuthenticationError:
+                response["ERROR"] = "Username and Password not accepted"
+        return response
 
 
 if __name__ == "__main__":
