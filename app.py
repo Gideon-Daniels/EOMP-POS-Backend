@@ -59,7 +59,7 @@ def validation_user_registration(name, surname, username, password, email):
         return validation_passed
     else:
         validation_passed = True
-        return  validation_passed
+        return validation_passed
 
 
 class Products(object):
@@ -143,7 +143,7 @@ CORS(app)  # cross platform connection to netlify
 app.debug = True
 # authenticate a token , making my app secure
 app.config['SECRET_KEY'] = 'super-secret'
-jwt = JWT(app, authenticate, identity)
+# jwt = JWT(app, authenticate, identity)
 # configuration for sending emails
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
@@ -196,7 +196,7 @@ def user_registration():
 
 # Show all the users
 @app.route('/show-users/', methods=["GET"])
-# @jwt_required()
+@jwt_required()
 def show_users():
     response = {}
     with sqlite3.connect("POS.db") as conn:
@@ -256,7 +256,7 @@ def show_products():
 
 
 @app.route("/delete-product/<int:product_id>")
-# @jwt_required()
+@jwt_required()
 def delete_product(product_id):
     response = {}
     with sqlite3.connect("POS.db") as conn:
@@ -371,7 +371,7 @@ def category(types):
 
     with sqlite3.connect("POS.db") as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM products where type=" + types)
+        cursor.execute("SELECT * FROM products where type=?", [types])
         total = cursor.fetchall()
         response["status_code"] = 200
         response["description"] = "Type received"
