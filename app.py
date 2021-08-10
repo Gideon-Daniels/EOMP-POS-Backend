@@ -166,11 +166,11 @@ def user_registration():
     response = {}
 
     if request.method == "POST":
-        first_name = request.form['first_name']
-        surname = request.form['surname']
-        username = request.form['username']
-        password = request.form['password']
-        email = request.form['email']
+        first_name = request.json['first_name']
+        surname = request.json['surname']
+        username = request.json['username']
+        password = request.json['password']
+        email = request.json['email']
         if not validation_user_registration(first_name, surname, username, password, email):
             response["message"] = "User Already Exist"
             response["status_code"] = 201
@@ -216,11 +216,11 @@ def add_product():
     response = {}
 
     if request.method == "POST":
-        title = request.form['title']
-        description = request.form['description']
-        image = request.form['image']
-        price = request.form['price']
-        type = request.form['type']
+        title = request.json['title']
+        description = request.json['description']
+        image = request.json['image']
+        price = request.json['price']
+        type = request.json['type']
 
         with sqlite3.connect('POS.db') as conn:
             cursor = conn.cursor()
