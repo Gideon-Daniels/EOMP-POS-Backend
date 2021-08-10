@@ -143,7 +143,7 @@ CORS(app)  # cross platform connection to netlify
 app.debug = True
 # authenticate a token , making my app secure
 app.config['SECRET_KEY'] = 'super-secret'
-# jwt = JWT(app, authenticate, identity)
+jwt = JWT(app, authenticate, identity)
 # configuration for sending emails
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
