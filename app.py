@@ -156,6 +156,7 @@ mail = Mail(app)
 
 @app.route('/protected')
 @jwt_required()
+
 def protected():
     return '%s' % current_identity
 
@@ -196,7 +197,7 @@ def user_registration():
 
 # Show all the users
 @app.route('/show-users/', methods=["GET"])
-@jwt_required()
+# @jwt_required()
 def show_users():
     response = {}
     with sqlite3.connect("POS.db") as conn:
@@ -211,7 +212,7 @@ def show_users():
 
 
 @app.route('/add-product/', methods=["POST"])
-@jwt_required()
+# @jwt_required()
 def add_product():
     response = {}
 
@@ -256,7 +257,7 @@ def show_products():
 
 
 @app.route("/delete-product/<int:product_id>")
-@jwt_required()
+# @jwt_required()
 def delete_product(product_id):
     response = {}
     with sqlite3.connect("POS.db") as conn:
@@ -269,7 +270,7 @@ def delete_product(product_id):
 
 
 @app.route('/edit-product/<int:product_id>/', methods=["PUT"])
-@jwt_required()
+# @jwt_required()
 def edit_product(product_id):
     response = {}
 
