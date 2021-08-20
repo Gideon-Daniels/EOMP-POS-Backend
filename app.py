@@ -194,7 +194,6 @@ def user_registration():
                     response['message'] = "Database failed"
         return response
 
-
 # Show all the users
 @app.route('/show-users/', methods=["GET"])
 # @jwt_required()
