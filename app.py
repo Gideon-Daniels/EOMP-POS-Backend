@@ -188,7 +188,7 @@ def user_registration():
                     conn.commit()
                     response["message"] = "success"
                     response["status_code"] = 201
-
+                    # global  users
                 except :
                     response["status_code"] = 401
                     response['message'] = "Database failed"
