@@ -8,6 +8,14 @@ from flask_cors import CORS
 from flask_mail import Mail, Message
 
 
+# Global functions
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
 class User(object):
     def __init__(self, id, name, surname, username, password, email):
         self.id = id
@@ -29,37 +37,6 @@ def fetch_users():
         for data in users_:
             new_data.append(User(data[0], data[1], data[2], data[3], data[4], data[5]))
     return new_data
-
-
-def validation_user_registration(name, surname, username, password, email):
-    name = name
-    surname = surname
-    username = username
-    password = password
-    email = email
-    with sqlite3.connect("POS.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users")
-        users = cursor.fetchall()
-
-        new_data = []
-
-        validation_passed = False
-
-        for data in users:
-            new_data.append(data)
-    if username in new_data and password in new_data and email in new_data:
-        return validation_passed
-    elif name == " " or surname == " " or username == " " or password == " " or \
-            email == " ":
-        return validation_passed
-    elif len(name) == 12 and len(surname) == 12:
-        return validation_passed
-    elif '@' not in email:
-        return validation_passed
-    else:
-        validation_passed = True
-        return validation_passed
 
 
 class Products(object):
@@ -109,12 +86,14 @@ def init_product_table():
     with sqlite3.connect("POS.db") as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS products("
                      "product_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                     "user_id INTEGER NOT NULL,"
                      "title TEXT NOT NULL,"
                      "description TEXT NOT NULL,"
                      "image TEXT NOT NULL,"
                      "price INTEGER NOT NULL,"
-                     "type TEXT NOT NULL"
-                     ")")
+                     "type TEXT NOT NULL,"
+                     "quantity INTEGER NOT NULL,"
+                     "FOREIGN KEY (user_id) REFERENCES users(user_id))")
     print("Table products created successfully")
     conn.close()
 
@@ -156,198 +135,258 @@ mail = Mail(app)
 
 @app.route('/protected')
 @jwt_required()
-
 def protected():
     return '%s' % current_identity
 
 
-# Inserting information into Database
-@app.route('/user-registration/', methods=["POST"])
+# Users ENDPOINT
+@app.route('/users/', methods=["GET", "POST", "POST"])
 def user_registration():
     response = {}
+    # Get Users
+    if request.method == "GET":
+        try:
+            with sqlite3.connect("POS.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM users")
 
-    if request.method == "POST":
+                all_users = cursor.fetchall()
+
+            response['status_code'] = 201
+            response['data'] = all_users
+            response['status_code'] = 401
+            response['message'] = "Successfully to retrieved users"
+        except:
+            response['status_code'] = 401
+            response['message'] = "Failed to retrieve users"
+
+    # Register User
+    elif request.method == "POST":
         first_name = request.json['first_name']
         surname = request.json['surname']
         username = request.json['username']
         password = request.json['password']
         email = request.json['email']
-        if not validation_user_registration(first_name, surname, username, password, email):
-            response["message"] = "User Already Exist"
-            response["status_code"] = 201
-        else:
+        try:
             with sqlite3.connect('POS.db') as conn:
                 cursor = conn.cursor()
-                try :
-                    cursor.execute("INSERT INTO users("
-                                   "first_name,"
-                                   "surname,"
-                                   "username,"
-                                   "password,"
-                                   "email) VALUES(?, ?, ?, ?, ?)", (first_name, surname, username, password, email))
-                    conn.commit()
-                    response["message"] = "success"
-                    response["status_code"] = 201
-                    # global  users
-                except :
-                    response["status_code"] = 401
-                    response['message'] = "Database failed"
-        return response
+                cursor.execute("INSERT INTO users("
+                               "first_name,"
+                               "surname,"
+                               "username,"
+                               "password,"
+                               "email) VALUES(?, ?, ?, ?, ?)", (first_name, surname, username, password, email))
+                conn.commit()
+                response["message"] = "successfully added User"
+                response["status_code"] = 201
+        except:
+            response["message"] = "Failed to register user"
+            response["status_code"] = 401
 
-# Show all the users
-@app.route('/show-users/', methods=["GET"])
-# @jwt_required()
-def show_users():
-    response = {}
-    with sqlite3.connect("POS.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users")
-
-        all_users = cursor.fetchall()
-
-    response['status_code'] = 200
-    response['data'] = all_users
+    #   Login Details
+    elif request.method == "PATCH":
+        username = request.json["username"]
+        password = request.json["password"]
+        try:
+            with sqlite3.connect("SMP.db") as conn:
+                conn.row_factory = dict_factory
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM users WHERE users=? AND password=?", (username, password))
+        except:
+            response["message"] = "Failed to retrieve user details"
+            response["status_code"] = 401
+    else:
+        response["status_code"] = 402
+        response['message'] = "Wrong method selected"
     return response
 
 
-@app.route('/add-product/', methods=["POST"])
+# PRODUCTS ENDPOINTS
+@app.route('/products/', methods=["GET", "POST"])
 # @jwt_required()
 def add_product():
     response = {}
+    # display products
+    if request.method == "GET":
+        try:
+            with sqlite3.connect("POS.db") as conn:
+                conn.row_factory = dict_factory
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM products")
+                products = cursor.fetchall()
+                counter = 0
 
-    if request.method == "POST":
+            for count in products:
+                counter += 1
+
+            response['status_code'] = 201
+            response['data'] = products
+            response['total'] = counter
+            response['description'] = "Product to retrieved succesffuly"
+        except :
+            response['status_code'] = 401
+            response['description'] = "Failed to retrieve product"
+
+    # Add products
+    elif request.method == "POST":
         title = request.json['title']
         description = request.json['description']
         image = request.json['image']
         price = request.json['price']
         type = request.json['type']
-
-        with sqlite3.connect('POS.db') as conn:
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO products("
-                           "title,"
-                           "description,"
-                           "image,"
-                           "price,"
-                           "type) VALUES(?, ?, ?, ?, ?)", (title, description, image, price, type))
-            conn.commit()
-            response['status_code'] = 201
-            response['description'] = "Product added successfully"
-        return response
-
-
-# show all the products
-@app.route('/show-products/', methods=["GET"])
-def show_products():
-    response = {}
-    with sqlite3.connect("POS.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM products")
-        products = cursor.fetchall()
-        counter = 0
-
-    for count in products:
-        counter += 1
-
-    response['status_code'] = 200
-    response['data'] = products
-    response['total'] = counter
+        user_id = request.json['user_id']
+        quantity = request.json['quantity']
+        try:
+            with sqlite3.connect('POS.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO products("
+                               "user_id,"
+                               "title,"
+                               "description,"
+                               "image,"
+                               "price,"
+                               "quantity,"
+                               "type) VALUES(?, ?, ?, ?, ?, ?, ?)", (user_id, title, description, image, price,
+                                                                     quantity, type))
+                conn.commit()
+                response['status_code'] = 201
+                response['description'] = "Product added successfully"
+        except:
+            response['status_code'] = 401
+            response['description'] = "Failed to add product"
     return response
 
 
-@app.route("/delete-product/<int:product_id>")
+@app.route("/product/<int:product_id>", methods=["GET", "PUT", "DELETE"])
 # @jwt_required()
-def delete_product(product_id):
+def product(product_id):
     response = {}
-    with sqlite3.connect("POS.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM products WHERE product_id=" + str(product_id))
-        conn.commit()
-        response['status_code'] = 200
-        response['message'] = "Product deleted successfully."
-    return response
+    # retrieves product based on id given
+    if request.method == "GET":
+        try:
+            with sqlite3.connect("POS.db") as conn:
+                cursor = conn.cursor()
+                conn.row_factory = dict_factory
+                cursor.execute("SELECT * FROM products where product_id=" + str(product_id))
 
+                response["status_code"] = 201
+                response["description"] = "Product retrieved successfully"
+                response["data"] = cursor.fetchone()
+        except:
+            response["status_code"] = 401
+            response["description"] = "Failed to retrieve product"
 
-@app.route('/edit-product/<int:product_id>/', methods=["PUT"])
-# @jwt_required()
-def edit_product(product_id):
-    response = {}
+    # deletes product based on id given
+    elif request.method == "DELETE":
+        try:
+            with sqlite3.connect("POS.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM products WHERE product_id=" + str(product_id))
+                conn.commit()
+                response['status_code'] = 201
+                response['message'] = "Product deleted successfully."
+        except:
+            response['status_code'] = 401
+            response['message'] = "Failed to delete product."
 
-    if request.method == "PUT":
+    # updates product information based on id given
+    elif request.method == "PUT":
         with sqlite3.connect('POS.db') as conn:
-            incoming_data = dict(request.json)
+            incoming_data = dict(request.json)  # put request inside and dictionary
             put_data = {}
-
+            # updates title
             if incoming_data.get("title") is not None:
                 put_data["title"] = incoming_data.get("title")
-                with sqlite3.connect('POS.db') as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET title =? WHERE product_id=?", (put_data["title"], product_id))
+                try:
+                    with sqlite3.connect('POS.db') as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE products SET title =? WHERE product_id=?", (put_data["title"], product_id))
 
-                    conn.commit()
+                        conn.commit()
 
-                    response["description"] = "Description Updated successfully"
-                    response["status_code"] = 200
+                        response["title"] = "title Updated successfully"
+                        response["status_code"] = 201
+                except:
+                    response["title"] = "title Updated unsuccessfully"
+                    response["status_code"] = 401
+            # updates description
             if incoming_data.get("description") is not None:
                 put_data["description"] = incoming_data.get("description")
+                try:
+                    with sqlite3.connect("POS.db") as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE products SET description =? WHERE product_id=?", (put_data["content"],
+                                                                                                 product_id))
+                        conn.commit()
 
-                with sqlite3.connect("POS.db") as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET description =? WHERE product_id=?", (put_data["content"],
-                                                                                             product_id))
-                    conn.commit()
-
-                    response["description"] = "Description Updated successfully"
-                    response["status_code"] = 200
+                        response["description"] = "Description Updated successfully"
+                        response["status_code"] = 201
+                except:
+                    response["description"] = "Description Updated unsuccessfully"
+                    response["status_code"] = 401
+            # updates price
             if incoming_data.get("price") is not None:
                 put_data["price"] = incoming_data.get("price")
+                try:
+                    with sqlite3.connect("POS.db") as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE products SET price =? WHERE product_id=?",
+                                       (put_data["price"], product_id))
+                        conn.commit()
 
-                with sqlite3.connect("POS.db") as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET price =? WHERE product_id=?", (put_data["price"], product_id))
-                    conn.commit()
-
-                    response["Price"] = "Price Updated successfully"
-                    response["status_code"] = 200
-
+                        response["Price"] = "Price Updated successfully"
+                        response["status_code"] = 201
+                except :
+                    response["Price"] = "Price Updated unsuccessfully"
+                    response["status_code"] = 401
+            # updates image
             if incoming_data.get("image") is not None:
                 put_data["image"] = incoming_data.get("image")
+                try:
+                    with sqlite3.connect("POS.db") as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE products SET image =? WHERE product_id=?", (put_data["image"], product_id))
+                        conn.commit()
 
-                with sqlite3.connect("POS.db") as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET image =? WHERE product_id=?", (put_data["image"], product_id))
-                    conn.commit()
+                        response["image"] = "Images Updated successfully"
+                        response["status_code"] = 201
+                except:
+                    response["image"] = "Images Updated unsuccessfully"
+                    response["status_code"] = 401
 
-                    response["image"] = "Images Updated successfully"
-                    response["status_code"] = 200
-
+            # updates type
             if incoming_data.get("type") is not None:
                 put_data["type"] = incoming_data.get("type")
+                try:
+                    with sqlite3.connect("POS.db") as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE products SET type =? WHERE product_id=?", (put_data["type"], product_id))
+                        conn.commit()
 
-                with sqlite3.connect("POS.db") as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE products SET type =? WHERE product_id=?", (put_data["type"], product_id))
-                    conn.commit()
+                        response["type"] = "Type Updated successfully"
+                        response["status_code"] = 201
+                except:
+                    response["type"] = "Type updated unsuccessfully"
+                    response["status_code"] = 401
 
-                    response["type"] = "Type Updated successfully"
-                    response["status_code"] = 200
+            # updates quantity
+            if incoming_data.get("quantity") is not None:
+                put_data["type"] = incoming_data.get("type")
+                try :
+                    with sqlite3.connect("POS.db") as conn:
+                        cursor =conn.cursor()
+                        cursor.execute("UPDATE products SET quantity=? WHERE product_id=?", (put_data["type"],
+                                                                                             product_id))
+                        conn.commit()
+
+                        response["quantity"] = "Quantity updated successfully"
+                        response["status_code"] = 201
+                except:
+                    response["quantity"] = "Quantity updated unsuccessfully"
+                    response["status_code"] = 401
+
     return response
-
-
-# Show only only one product
-@app.route('/show-product/<int:post_id>/', methods=["GET"])
-def show_product(post_id):
-    response = {}
-
-    with sqlite3.connect("POS.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM products where product_id=" + str(post_id))
-
-        response["status_code"] = 200
-        response["description"] = "Product retrieved successfully"
-        response["data"] = cursor.fetchone()
-
-    return jsonify(response)
+# return jsonify(response)
 
 
 @app.route('/total-price')
